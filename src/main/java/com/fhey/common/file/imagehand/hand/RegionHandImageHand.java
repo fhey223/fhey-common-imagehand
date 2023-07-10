@@ -9,8 +9,8 @@ import java.io.InputStream;
 
 /**
  * @author fhey
- * @date 2022-01-23 18:14:14
- * @description: TODO
+ * @date 2022-07-08 18:14:14
+ * @description: 
  */
 public class RegionHandImageHand extends BaseImageHand<RegionRule> {
     @Override

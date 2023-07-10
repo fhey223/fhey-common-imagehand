@@ -12,8 +12,8 @@ import java.util.Map;
 
 /**
  * @author fhey
- * @date 2022-01-23 18:31:39
- * @description: TODO
+ * @date 2022-07-08 18:31:39
+ * @description: 
  */
 public class TextImageHandWatermarkHand extends AbstractWatermarkHand<TextWatermarkRule> {
     /**

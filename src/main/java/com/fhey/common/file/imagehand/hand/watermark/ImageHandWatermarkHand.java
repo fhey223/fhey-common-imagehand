@@ -8,8 +8,8 @@ import java.io.IOException;
 
 /**
  * @author fhey
- * @date 2022-01-23 18:31:09
- * @description: TODO
+ * @date 2022-07-08 18:31:09
+ * @description: 
  */
 public class ImageHandWatermarkHand extends AbstractWatermarkHand<ImageWatermarkRule> {
     /**

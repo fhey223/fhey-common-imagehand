@@ -2,8 +2,8 @@ package com.fhey.common.file.imagehand.rule;
 
 /**
  * @author fhey
- * @date 2022-01-23 16:51:25
- * @description: TODO
+ * @date 2022-07-08 16:51:25
+ * @description: 
  */
 public interface ImageHandRule {
 

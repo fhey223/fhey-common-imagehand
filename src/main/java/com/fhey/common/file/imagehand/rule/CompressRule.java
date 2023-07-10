@@ -9,7 +9,7 @@ import lombok.NoArgsConstructor;
 
 /**
  * @author fhey
- * @date 2022-01-23 17:28:28
+ * @date 2022-07-08 17:28:28
  * @description: 压缩规则
  */
 @Data

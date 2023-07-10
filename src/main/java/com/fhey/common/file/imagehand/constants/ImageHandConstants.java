@@ -18,8 +18,8 @@ import java.util.Map;
 
 /**
  * @author fhey
- * @date 2022-01-23 17:20:29
- * @description: TODO
+ * @date 2022-07-08 17:20:29
+ * @description: 
  */
 public class ImageHandConstants {
 

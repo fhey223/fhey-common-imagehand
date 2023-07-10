@@ -3,8 +3,8 @@ package com.fhey.common.file.imagehand.enums;
 
 /**
  * @author fhey
- * @date 2022-01-23 14:59:15
- * @description: TODO
+ * @date 2022-07-08 14:59:15
+ * @description: 
  */
 public enum RegionTypeEnum {
 

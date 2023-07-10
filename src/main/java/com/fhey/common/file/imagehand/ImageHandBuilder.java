@@ -18,6 +18,11 @@ import java.net.URL;
 import java.util.HashSet;
 import java.util.Set;
 
+/**
+ * @author fhey
+ * @date 2022-07-08 17:02:11
+ * @description: 图片处理器
+ */
 public final class ImageHandBuilder {
 
     /**

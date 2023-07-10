@@ -9,7 +9,7 @@ import net.coobird.thumbnailator.geometry.Positions;
 
 /**
  * @author fhey
- * @date 2022-01-23 17:42:51
+ * @date 2022-07-08 17:42:51
  * @description: 裁剪规则
  */
 @Data

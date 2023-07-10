@@ -8,8 +8,8 @@ import java.io.InputStream;
 
 /**
  * @author fhey
- * @date 2022-01-23 17:07:36
- * @description: TODO
+ * @date 2022-07-08 17:07:36
+ * @description: 
  */
 public abstract class BaseImageHand<T extends ImageHandRule> {
     public abstract boolean hand(Thumbnails.Builder<? extends InputStream> thumbnails, T rule, BufferedImage image);

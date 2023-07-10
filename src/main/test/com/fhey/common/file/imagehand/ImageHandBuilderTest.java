@@ -51,8 +51,8 @@ public class ImageHandBuilderTest {
         ImageHandBuilder.load(imageResource)
                 .addRule(ImageHandRuleFactory.regionRuleBuilder()
                         .regionType(RegionTypeEnum.WIDTH_HEIGHT_REGION)
-                        .positions(Positions.TOP_CENTER)
-                        .width(500)
+                        .positions(Positions.CENTER)
+                        .width(300)
                         .height(300).build())
                 .toFile("D:\\test\\test-region-widthHeight.jpg");
     }
@@ -85,7 +85,7 @@ public class ImageHandBuilderTest {
 
     //按长宽压缩 保持比例
     @Test
-    public void testWidthHeightCompressKeepAspectRatio() throws Exception {
+    public void testWidthHeightCompressKeepAspectRatioByWidth() throws Exception {
         ClassLoader classLoader = ImageHandBuilderTest.class.getClassLoader();
         URL imageResource = classLoader.getResource("pic/example.jpg");
         ImageHandBuilder.load(imageResource)
@@ -93,8 +93,22 @@ public class ImageHandBuilderTest {
                         .compressType(CompressTypeEnum.WIDTH_HEIGHT_COMPRESS)
                         .width(300)
                         .height(300)
-                        .keepAspectRatio(KeepAspectRatioEnum.KEEP_By_WITH).build())
-                .toFile("D:\\test\\test-compress-widthHeight-keep.jpg");
+                        .keepAspectRatio(KeepAspectRatioEnum.KEEP_BY_WITH).build())
+                .toFile("D:\\test\\test-compress-widthHeight-keep-byWidth.jpg");
+    }
+
+    //按长宽压缩 保持比例
+    @Test
+    public void testWidthHeightCompressKeepAspectRatioAuto() throws Exception {
+        ClassLoader classLoader = ImageHandBuilderTest.class.getClassLoader();
+        URL imageResource = classLoader.getResource("pic/example.jpg");
+        ImageHandBuilder.load(imageResource)
+                .addRule(ImageHandRuleFactory.compressRuleBuilder()
+                        .compressType(CompressTypeEnum.WIDTH_HEIGHT_COMPRESS)
+                        .width(300)
+                        .height(300)
+                        .keepAspectRatio(KeepAspectRatioEnum.KEEP_AUTO).build())
+                .toFile("D:\\test\\test-compress-widthHeight-keep-auto.jpg");
     }
 
     //按比例压缩
@@ -121,7 +135,7 @@ public class ImageHandBuilderTest {
                         .compressType(CompressTypeEnum.WIDTH_HEIGHT_COMPRESS)
                         .width(width)
                         .height(height)
-                        .keepAspectRatio(KeepAspectRatioEnum.KEEP_By_AUTO).build())
+                        .keepAspectRatio(KeepAspectRatioEnum.KEEP_AUTO).build())
 //                .addRule(ImageHandRuleFactory.regionRuleBuilder()
 //                        .regionType(RegionTypeEnum.WIDTH_HEIGHT_REGION)
 //                        .positions(Positions.CENTER)
@@ -172,7 +186,7 @@ public class ImageHandBuilderTest {
     }
 
     @Test
-    public void testTextWatermarkProportion() throws Exception {
+    public void testTextWatermark() throws Exception {
         ClassLoader classLoader = ImageHandBuilderTest.class.getClassLoader();
         URL imageResource = classLoader.getResource("pic/example.jpg");
         ImageHandBuilder.load(imageResource)
@@ -180,11 +194,11 @@ public class ImageHandBuilderTest {
                         .textBuilder()
                         .text("@知北游")
                         .color(Color.WHITE)
-                        .font(new Font("宋体", Font.BOLD, 80))
+                        .font(new Font("宋体", Font.BOLD, 100))
                         .margin(20)
                         //.proportion(0.3d)
                         .alpha(0.8d)
-                        .positions(Positions.TOP_RIGHT).build())
+                        .positions(Positions.BOTTOM_RIGHT).build())
                 .toFile("D:\\test\\test-watermark-text.jpg");
     }
 
@@ -204,5 +218,47 @@ public class ImageHandBuilderTest {
                         .alpha(0.7d)
                         .build())
                 .toFile("D:\\test\\test-watermark-multipleText.jpg");
+    }
+
+    @Test
+    public void testAddBuff() throws Exception {
+        ClassLoader classLoader = ImageHandBuilderTest.class.getClassLoader();
+        URL imageResource = classLoader.getResource("pic/example.jpg");
+        URL syResource = classLoader.getResource("pic/watermark.png");
+        InputStream syInput = syResource.openStream();
+        BufferedImage syImage = ImageIO.read(syInput);
+        ImageHandBuilder.load(imageResource)
+                //按比例压缩
+                .addRule(ImageHandRuleFactory.compressRuleBuilder()
+                        .compressType(CompressTypeEnum.SCALE_COMPRESS)
+                        .scale(0.5d).build())
+                //添加图片水印
+                .addRule(ImageHandRuleFactory.waterRuleBuilder()
+                        .imageBuilder()
+                        .waterImage(syImage)
+                        .alpha(0.5d)
+                        .positions(Positions.BOTTOM_RIGHT).build())
+                //添加文字水印
+                .addRule(ImageHandRuleFactory.waterRuleBuilder()
+                        .textBuilder()
+                        .text("@知北游")
+                        .color(Color.WHITE)
+                        .font(new Font("宋体", Font.BOLD, 70))
+                        .margin(20)
+                        //.proportion(0.3d)
+                        .alpha(0.8d)
+                        .positions(Positions.BOTTOM_LEFT).build())
+                //添加多行文字水印
+                .addRule(ImageHandRuleFactory.waterRuleBuilder()
+                        .multipleTextBuilder()
+                        .rotateDegree(-35d)
+                        .ySpace(300)
+                        .xSpace(250)
+                        .color(Color.RED)
+                        .font(new Font("宋体", Font.BOLD, 30))
+                        .text("三十功名尘与土,八千里路云和月")
+                        .alpha(0.7d)
+                        .build())
+                .toFile("D:\\test\\test-addBuff.jpg");
     }
 }

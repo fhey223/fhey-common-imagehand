@@ -1,8 +1,8 @@
 package com.fhey.common.file.imagehand.hand;
 
 import com.fhey.common.file.imagehand.enums.CompressTypeEnum;
+import com.fhey.common.file.imagehand.enums.KeepAspectRatioEnum;
 import com.fhey.common.file.imagehand.rule.CompressRule;
-import com.fhey.common.file.imagehand.rule.RegionRule;
 import net.coobird.thumbnailator.Thumbnails;
 
 import java.awt.image.BufferedImage;
@@ -11,8 +11,8 @@ import java.math.BigDecimal;
 
 /**
  * @author fhey
- * @date 2022-01-23 17:02:11
- * @description: TODO
+ * @date 2022-07-08 17:02:11
+ * @description:
  */
 public class CompressHandImageHand extends BaseImageHand<CompressRule> {
 
@@ -21,15 +21,19 @@ public class CompressHandImageHand extends BaseImageHand<CompressRule> {
         if (CompressTypeEnum.SCALE_COMPRESS.equals(rule.getCompressType())){//按比例缩放
             thumbnails.scale(rule.getScale());
         } else if (CompressTypeEnum.WIDTH_HEIGHT_COMPRESS.equals(rule.getCompressType())) {//按宽高缩放
-            switch (rule.getKeepAspectRatio()){
-                case KEEP_By_WITH:
+            KeepAspectRatioEnum keepAspectRatio = rule.getKeepAspectRatio();
+            if(null == keepAspectRatio){
+                keepAspectRatio = KeepAspectRatioEnum.NO_KEEP;
+            }
+            switch (keepAspectRatio){
+                case KEEP_BY_WITH:
                     thumbnails.size(rule.getWidth(), rule.getHeight()).keepAspectRatio(true);
                     break;
-                case KEEP_By_AUTO:
+                case KEEP_AUTO:
                     compressKeepAspectRatio(thumbnails, rule, image);
                     break;
                 default:
-                    thumbnails.size(rule.getWidth(), rule.getHeight());
+                    thumbnails.size(rule.getWidth(), rule.getHeight()).keepAspectRatio(false);
                     break;
             }
         }
