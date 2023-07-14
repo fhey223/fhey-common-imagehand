@@ -1019,5 +1019,857 @@ public class MultipleTextWatermarkRule extends BaseImageWatermarkRule {
 #### 5.2 实现效果
 ![请添加图片描述](https://img2023.cnblogs.com/blog/685402/202307/685402-20230712110844521-1122475991.jpg)
 
+# 四、主要的代码实现
+
+## 1、建造者的实现
+
+建造者的实现的实现很简单在ImageHandBuilder类里建立一个Builder的内部类，通过调用静态方法load()实例化Builder来实现建造者，具体代码如下：
+
+```java
+package com.fhey.common.file.imagehand;
+
+import cn.hutool.core.io.FileTypeUtil;
+import com.fhey.common.file.imagehand.constants.ImageHandConstants;
+import com.fhey.common.file.imagehand.rule.CompressRule;
+import com.fhey.common.file.imagehand.rule.ImageHandRule;
+import com.fhey.common.file.imagehand.base.ImageHandCommand;
+import net.coobird.thumbnailator.Thumbnails;
+import org.apache.commons.chain.Chain;
+import org.apache.commons.chain.Context;
+import org.apache.commons.chain.impl.ChainBase;
+import org.apache.commons.chain.impl.ContextBase;
+import org.springframework.web.multipart.MultipartFile;
+import javax.imageio.ImageIO;
+import java.awt.image.BufferedImage;
+import java.io.*;
+import java.net.URL;
+import java.util.HashSet;
+import java.util.Set;
+
+/**
+ * @author fhey
+ * @date 2022-07-08 17:02:11
+ * @description: 图片处理器
+ */
+public final class ImageHandBuilder {
+
+    /**
+     * 加载图片
+     * @param absolutePath 图片绝对路径
+     * @return Builder
+     */
+    public static Builder load(String absolutePath) {
+        return load(new File(absolutePath));
+    }
+
+    /**
+     * 加载图片
+     * @param file 图片文件
+     * @return Builder
+     */
+    public static Builder load(File file) {
+        try {
+            return load(new FileInputStream(file));
+        } catch (FileNotFoundException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    /**
+     * 加载图片
+     * @param file 图片文件
+     * @return Builder
+     */
+    public static Builder load(MultipartFile file) {
+        try {
+            return load(file.getInputStream());
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    /**
+     * 加载图片
+     * @param url 图片url
+     * @return Builder
+     */
+    public static Builder load(URL url){
+        try {
+            return load(url.openStream());
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    /**
+     * 加载图片
+     * @param inputStream 图片输入流
+     * @return Builder
+     */
+    public static Builder load(InputStream inputStream) {
+        try (ByteArrayOutputStream byteArrayOutputStream = cloneInputStream(inputStream);
+             InputStream inputStream1 = new ByteArrayInputStream(byteArrayOutputStream.toByteArray());
+             InputStream inputStream2 = new ByteArrayInputStream(byteArrayOutputStream.toByteArray())){
+            String fileType = FileTypeUtil.getType(inputStream1);
+            BufferedImage image = ImageIO.read(inputStream2);
+            inputStream.close();
+            return load(image, fileType);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    /**
+     * 加载图片
+     * @param image 图片
+     * @param fileType 图片类型
+     * @return Builder
+     */
+    public static Builder load(BufferedImage image, String fileType) {
+        return new Builder(image, fileType);
+    }
+
+    private static ByteArrayOutputStream cloneInputStream(InputStream input) {
+        try {
+            ByteArrayOutputStream baos = new ByteArrayOutputStream();
+            byte[] buffer = new byte[1024];
+            int len;
+            while ((len = input.read(buffer)) > -1) {
+                baos.write(buffer, 0, len);
+            }
+            baos.flush();
+            return baos;
+        } catch (IOException e) {
+            e.printStackTrace();
+            return null;
+        }
+    }
+
+    public static class Builder {
+        /**
+         * 图片处理责任链
+         */
+        private Chain execChain;
+
+        /**
+         * 文件类型
+         */
+        private String fileType;
+
+        /**
+         * 需要处理的图片
+         */
+        private BufferedImage image;
+
+        private  Thumbnails.Builder<? extends BufferedImage> thumbnails;
+
+        private Set<Class<? extends ImageHandRule>> ruleSet;
+
+        public Builder(BufferedImage image, String fileType) {
+            this.image = image;
+            this.fileType = fileType.toUpperCase();
+            this.thumbnails = Thumbnails.of(image);
+            this.execChain = new ChainBase();
+            this.ruleSet = new HashSet<>();
+        }
+
+        /**
+         * 添加图片处理规则
+         * @param rule 图片处理规则
+         * @return Builder
+         */
+        public Builder addRule(ImageHandRule rule) {
+            //检查规则
+            rule.check();
+            //检查规则是否重复
+            if(!rule.canRepeat()){
+                if(this.ruleSet.contains(rule.getClass())){
+                    throw new RuntimeException("规则:" + rule.getClass().getSimpleName() + "不能重复添加");
+                }
+                this.ruleSet.add(rule.getClass());
+            }
+            //给图片处理责任链添加任务
+            ImageHandCommand instance = ImageHandCommand.getInstance(rule);
+            execChain.addCommand(instance);
+            return this;
+        }
+
+        /**
+         * 返回Thumbnails.Builder 方便自定义处理
+         * @return Thumbnails.Builder
+         */
+        public Thumbnails.Builder<? extends BufferedImage> getThumbnails() {
+            return this.thumbnails;
+        }
+
+        /**
+         * 开始处理图片
+         * @return Builder
+         */
+        private Builder process() throws Exception {
+            Context context = new ContextBase();
+            context.put(ImageHandConstants.PROCESS_IMAGE_KEY, this.image);
+            context.put(ImageHandConstants.TARGET_KEY, this.thumbnails);
+            //开始执行图片处理责任链
+            execChain.execute(context);
+            thumbnails.outputQuality(1f).outputFormat(this.fileType);
+            //如果没有压缩规则，则不压缩
+            if(!ruleSet.contains(CompressRule.class)){
+                thumbnails.scale(1f);
+            }
+            return this;
+        }
+
+        /**
+         * 将处理后的图片导出到文件
+         * @param file 图片文件
+         */
+        public void toFile(File file) throws Exception {
+            this.process();
+            this.thumbnails.toFile(file);
+        }
+
+        /**
+         * 将处理后的图片导出到文件
+         * @param absolutePath 图片绝对路径
+         */
+        public void toFile(String absolutePath) throws Exception {
+            this.process();
+            this.thumbnails.toFile(absolutePath);
+        }
+
+        /**
+         * 将处理后的图片导出到输出流
+         * @param out 输出流
+         */
+        public void toOutputStream(OutputStream out) throws Exception {
+            this.process();
+            this.thumbnails.toOutputStream(out);
+        }
+    }
+}
+```
+
+
+
+## 2、责任链的使用
+
+### 2.1 初始化责任链
+
+工具类使用了apache包下的责任链ChainBase。在调用load())初始Builder类是创建了一个责任链
+
+```java
+ 	public static Builder load(BufferedImage image, String fileType) {
+     	return new Builder(image, fileType);
+  	}
+  
+  	public Builder(BufferedImage image, String fileType) {
+         this.image = image;
+         this.fileType = fileType.toUpperCase();
+         this.thumbnails = Thumbnails.of(image);
+         this.execChain = new ChainBase();
+         this.ruleSet = new HashSet<>();
+  	}
+```
+
+
+
+### 2.2 为责任链添加任务
+
+在调用添加图片处理规则方法addRule()时会将图片处理规则封装成责任链命令并往初始化后的责任链里添加任务
+
+```java
+ /**
+         * 添加图片处理规则
+         * @param rule 图片处理规则
+         * @return Builder
+         */
+        public Builder addRule(ImageHandRule rule) {
+            //检查规则
+            rule.check();
+            //检查规则是否重复
+            if(!rule.canRepeat()){
+                if(this.ruleSet.contains(rule.getClass())){
+                    throw new RuntimeException("规则:" + rule.getClass().getSimpleName() + "不能重复添加");
+                }
+                this.ruleSet.add(rule.getClass());
+            }
+            //给图片处理责任链添加任务
+            ImageHandCommand instance = ImageHandCommand.getInstance(rule);
+            execChain.addCommand(instance);
+            return this;
+        }
+```
+
+责任链任务实例工厂：
+
+```java
+import com.fhey.common.file.imagehand.constants.ImageHandConstants;
+import com.fhey.common.file.imagehand.hand.BaseImageHand;
+import com.fhey.common.file.imagehand.rule.ImageHandRule;
+import lombok.Data;
+import net.coobird.thumbnailator.Thumbnails;
+import org.apache.commons.chain.Command;
+import org.apache.commons.chain.Context;
+
+import java.awt.image.BufferedImage;
+import java.io.InputStream;
+
+@Data
+public
+class ImageHandCommand implements Command {
+    private ImageHandCommand(){}
+
+    /**
+     * 获取图片处理器责任链任务实例
+     * @param rule 图片处理规则
+     * @return 图片处理器
+     */
+    public static ImageHandCommand getInstance(ImageHandRule rule) {
+        ImageHandCommand imageHandCommand = new ImageHandCommand();
+        imageHandCommand.setRule(rule);
+        BaseImageHand imageHand = ImageHandConstants.getImageHand(rule.getClass());
+        if (imageHand == null) {
+            throw new RuntimeException("规则:" + rule.getClass().getSimpleName() + "未找到对应的处理器");
+        }
+        imageHandCommand.setImageHand(imageHand);
+        return imageHandCommand;
+    }
+
+    /**
+     * 图片处理规则
+     */
+    private ImageHandRule rule;
+
+    /**
+     * 图片处理器
+     */
+    private BaseImageHand imageHand;
+
+
+    @Override
+    public boolean execute(Context context) {
+        BufferedImage image =(BufferedImage) context.get(ImageHandConstants.PROCESS_IMAGE_KEY);
+        Thumbnails.Builder<? extends InputStream> thumbnails = (Thumbnails.Builder<? extends InputStream>) context.get(ImageHandConstants.TARGET_KEY);
+        return this.imageHand.hand(thumbnails, this.rule, image);
+    }
+}
+```
+
+图片处理静态类：
+
+```java
+/**
+ * @author fhey
+ * @date 2022-07-08 17:20:29
+ * @description: 
+ */
+public class ImageHandConstants {
+
+    public final  static  String PROCESS_IMAGE_KEY = "image";
+
+    public final  static  String TARGET_KEY = "target";
+
+    private final static Map<Class<? extends ImageHandRule>, BaseImageHand> ruleHandMap = new HashMap<>();
+
+    static {
+        ruleHandMap.put(RegionRule.class, new RegionHandImageHand());
+        ruleHandMap.put(CompressRule.class, new CompressHandImageHand());
+        ruleHandMap.put(ImageWatermarkRule.class, new ImageHandWatermarkHand());
+        ruleHandMap.put(TextWatermarkRule.class, new TextImageHandWatermarkHand());
+        ruleHandMap.put(MultipleTextWatermarkRule.class, new MultipleTextWatermarkHand());
+    }
+
+    public static BaseImageHand getImageHand(Class<? extends ImageHandRule> ruleClass) {
+        return ruleHandMap.get(ruleClass);
+    }
+}
+```
+
+
+
+## 3、执行责任链
+
+在最后执行的图片输出方法toFile()、toOutputStream()中都会调用process()方法
+
+```java
+		/**
+         * 将处理后的图片导出到文件
+         * @param file 图片文件
+         */
+        public void toFile(File file) throws Exception {
+            this.process();
+            this.thumbnails.toFile(file);
+        }
+
+        /**
+         * 将处理后的图片导出到文件
+         * @param absolutePath 图片绝对路径
+         */
+        public void toFile(String absolutePath) throws Exception {
+            this.process();
+            this.thumbnails.toFile(absolutePath);
+        }
+
+        /**
+         * 将处理后的图片导出到输出流
+         * @param out 输出流
+         */
+        public void toOutputStream(OutputStream out) throws Exception {
+            this.process();
+            this.thumbnails.toOutputStream(out);
+        }
+```
+
+而在process()方法中执行了执行责任链
+
+```java
+		/**
+         * 开始处理图片
+         * @return Builder
+         */
+        private Builder process() throws Exception {
+            Context context = new ContextBase();
+            context.put(ImageHandConstants.PROCESS_IMAGE_KEY, this.image);
+            context.put(ImageHandConstants.TARGET_KEY, this.thumbnails);
+            //开始执行图片处理责任链
+            execChain.execute(context);
+            thumbnails.outputQuality(1f).outputFormat(this.fileType);
+            //如果没有压缩规则，则不压缩
+            if(!ruleSet.contains(CompressRule.class)){
+                thumbnails.scale(1f);
+            }
+            return this;
+        }
+```
+
+
+
+## 4、图片裁剪的实现
+
+图片裁剪的实现的实现很简单其实就是使用thumbnailator的sourceRegion()方法，所谓按比例裁剪其实就是用原图的长宽 * 比例算出需要裁剪的长宽，再进行裁剪。
+
+### 实现代码
+
+```java
+public class RegionHandImageHand extends BaseImageHand<RegionRule> {
+    @Override
+    public boolean hand(Thumbnails.Builder<? extends InputStream> thumbnails, RegionRule rule, BufferedImage image) {
+        if (RegionTypeEnum.SCALE_REGION.equals(rule.getRegionType())) {
+            //按比例裁剪
+            Double scale = rule.getScale();
+            thumbnails.sourceRegion(rule.getPositions(), (int) (image.getWidth() * scale), (int) (image.getHeight() * scale));
+        } else if (RegionTypeEnum.WIDTH_HEIGHT_REGION.equals(rule.getRegionType())) {
+            //按宽高裁剪
+            thumbnails.sourceRegion(rule.getPositions(), rule.getWidth(), rule.getHeight());
+        }
+        return false;
+    }
+}
+```
+
+
+
+## 5、图片压缩的实现
+
+### 5.1 按比例压缩图片
+
+按比例压缩图片使用thumbnailator的scale()方法
+
+
+
+### 5.2 按长宽压缩图片
+
+按长宽压缩图片使用thumbnailator的size()方法，因为thumbnailator提供的保持长宽比的方式和我的一些使用场景不一致，所以有自定义实现了一个保持长宽比的方式
+
+
+
+### 5.3 实现代码
+
+```java
+import com.fhey.common.file.imagehand.enums.CompressTypeEnum;
+import com.fhey.common.file.imagehand.enums.KeepAspectRatioEnum;
+import com.fhey.common.file.imagehand.rule.CompressRule;
+import net.coobird.thumbnailator.Thumbnails;
+
+import java.awt.image.BufferedImage;
+import java.io.InputStream;
+import java.math.BigDecimal;
+
+/**
+ * @author fhey
+ * @date 2022-07-08 17:02:11
+ * @description:
+ */
+public class CompressHandImageHand extends BaseImageHand<CompressRule> {
+
+    @Override
+    public boolean hand(Thumbnails.Builder<? extends InputStream> thumbnails, CompressRule rule, BufferedImage image) {
+        if (CompressTypeEnum.SCALE_COMPRESS.equals(rule.getCompressType())){//按比例缩放
+            thumbnails.scale(rule.getScale());
+        } else if (CompressTypeEnum.WIDTH_HEIGHT_COMPRESS.equals(rule.getCompressType())) {//按宽高缩放
+            KeepAspectRatioEnum keepAspectRatio = rule.getKeepAspectRatio();
+            if(null == keepAspectRatio){
+                keepAspectRatio = KeepAspectRatioEnum.NO_KEEP;
+            }
+            switch (keepAspectRatio){
+                case KEEP_BY_WITH:
+                    thumbnails.size(rule.getWidth(), rule.getHeight()).keepAspectRatio(true);
+                    break;
+                case KEEP_AUTO:
+                    compressKeepAspectRatio(thumbnails, rule, image);
+                    break;
+                default:
+                    thumbnails.size(rule.getWidth(), rule.getHeight()).keepAspectRatio(false);
+                    break;
+            }
+        }
+        return false;
+    }
+
+    private void compressKeepAspectRatio(Thumbnails.Builder<? extends InputStream> thumbnails, CompressRule rule, BufferedImage image) {
+        int width;
+        int height;
+        BigDecimal aspectRatio = BigDecimal.valueOf(image.getWidth()).divide(BigDecimal.valueOf(image.getHeight()),2,BigDecimal.ROUND_HALF_UP);
+        BigDecimal aspectRatioWidth = BigDecimal.valueOf(rule.getHeight()).multiply(aspectRatio);
+        BigDecimal aspectRatioHeight = BigDecimal.valueOf(rule.getWidth()).divide(aspectRatio,2,BigDecimal.ROUND_HALF_UP);
+
+        if(aspectRatioHeight.compareTo(BigDecimal.valueOf(rule.getHeight())) < 0) {
+            height = rule.getHeight();
+            width = aspectRatioWidth.intValue();
+        } else {
+            width = rule.getWidth();
+            height = aspectRatioHeight.intValue();
+        }
+        thumbnails.size(width, height).keepAspectRatio(true);
+    }
+}
+```
+
+
+
+
+
+## 6、添加水印的实现
+
+### 6.1 添加水印通用代码
+
+添加水印放入方式使用thumbnailator的watermark()方法，因为thumbnailator只支持添加图片水印，所以添加文字水印和多行文字水印都是先使用Graphics2D绘制一张图片在调用watermark()方法添加水印的。所有工具类先建立了添加水印的规则基类BaseImageWatermarkRule和添加水印的处理类基类AbstractWatermarkHand
+
+BaseImageWatermarkRule：
+
+```java
+import com.fhey.common.file.imagehand.rule.ImageHandRule;
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+import lombok.experimental.SuperBuilder;
+import net.coobird.thumbnailator.geometry.Positions;
+
+@Data
+@SuperBuilder
+@NoArgsConstructor
+@AllArgsConstructor
+public abstract class BaseImageWatermarkRule implements ImageHandRule {
+
+    /**
+     * 水印位置
+     */
+    private Positions positions;
+
+    /**
+     * 水印透明度
+     */
+    private Double alpha;
+
+    @Override
+    //设置水印可以重复设置
+    public boolean canRepeat() {
+        return true;
+    }
+}
+```
+
+AbstractWatermarkHand：
+
+```java
+import com.fhey.common.file.imagehand.rule.watermark.BaseImageWatermarkRule;
+import com.fhey.common.file.imagehand.hand.BaseImageHand;
+import net.coobird.thumbnailator.Thumbnails;
+
+import java.awt.image.BufferedImage;
+import java.io.InputStream;
+
+public abstract class AbstractWatermarkHand<T extends BaseImageWatermarkRule> extends BaseImageHand<T> {
+    @Override
+    public boolean hand(Thumbnails.Builder<? extends InputStream> thumbnails, T rule, BufferedImage image) {
+        if(rule.getAlpha() == null){
+            rule.setAlpha(1d);
+        }
+        BufferedImage waterImg = getWaterImg(image, rule);
+        thumbnails.watermark(rule.getPositions(), waterImg, rule.getAlpha().floatValue());
+        return false;
+    }
+
+    /**
+     * 获取水印图片
+     * @param srcImg 原图
+     * @param rule 水印规则
+     * @return Builder
+     */
+     abstract BufferedImage getWaterImg(BufferedImage srcImg, T rule);
+}
+```
+
+ImageHandWatermarkHand（添加图片水印处理类）、TextHandWatermarkHand（添加文字水印处理类）、MultipleTextWatermarkHand（添加多行文字水印处理类）继承添加水印的处理类基类AbstractWatermarkHand后只需要实现获取水印图片的方法getWaterImg()。
+
+
+
+### 6.2 添加图片水印的实现
+
+添加图片水印的实现的获取水印方法很简单，只有图片处理规则里没有proportion（*水印占原图宽高比*），就直接返回水印图片，如果传了则需要调整一下水印的长宽再返回。
+
+代码实现如下：
+
+```java
+import com.fhey.common.file.imagehand.rule.watermark.ImageWatermarkRule;
+import net.coobird.thumbnailator.Thumbnails;
+import java.awt.image.BufferedImage;
+import java.io.IOException;
+
+/**
+ * @author fhey
+ * @date 2022-07-08 18:31:09
+ * @description: 
+ */
+public class ImageHandWatermarkHand extends AbstractWatermarkHand<ImageWatermarkRule> {
+    /**
+     * 获取水印图片
+     * @param srcImg 原图
+     * @param rule 图片水印规则
+     * @return Builder
+     */
+    @Override
+    public BufferedImage getWaterImg(BufferedImage srcImg, ImageWatermarkRule rule){
+        try {
+            if (rule.getProportion() == null){
+                return rule.getWaterImage();
+            }
+            BufferedImage waterImg = rule.getWaterImage();
+            int waterWidth = (int) (srcImg.getWidth() * rule.getProportion());
+            int waterHeight = waterWidth * waterImg.getHeight() / waterImg.getWidth();
+            return Thumbnails.of(waterImg).size(waterWidth, waterHeight).keepAspectRatio(true).asBufferedImage();
+        } catch (IOException e){
+           throw new RuntimeException(e);
+        }
+    }
+}
+```
+
+
+
+### 6.3 添加文字水印的实现
+
+因为thumbnailator的watermark()方法只支持添加图片水印，所以先使用Graphics2D绘制一张图片。
+
+代码实现如下：
+
+```java
+import cn.hutool.core.lang.Tuple;
+import com.fhey.common.file.imagehand.rule.watermark.TextWatermarkRule;
+import net.coobird.thumbnailator.geometry.Positions;
+import java.awt.*;
+import java.awt.geom.Rectangle2D;
+import java.awt.image.BufferedImage;
+
+/**
+ * @author fhey
+ * @date 2022-07-08 18:31:39
+ * @description: 
+ */
+public class TextHandWatermarkHand extends AbstractWatermarkHand<TextWatermarkRule> {
+    /**
+     * 获取水印图片
+     * @param srcImg 原图
+     * @param rule 文字水印规则
+     * @return Builder
+     */
+    //@Override
+    public BufferedImage getWaterImg(BufferedImage srcImg, TextWatermarkRule rule) {
+        int srcWidth = srcImg.getWidth();
+        int srcHeight = srcImg.getHeight();
+        int margin = rule.getMargin();
+        String text = rule.getText();
+        ///确定字体
+        Font font;
+        if (rule.getProportion() != null) {
+            double fontLength = srcWidth * rule.getProportion();
+            Integer frontSize = (int) (fontLength / text.length());
+            font = new Font(rule.getFont().getName(), rule.getFont().getStyle(), frontSize);
+        } else {
+            font = rule.getFont();
+        }
+        FontMetrics metrics = new FontMetrics(font) {};
+        Rectangle2D bounds = metrics.getStringBounds(text, null);
+        //效果一样
+//        FontRenderContext frc = new FontRenderContext(null, true, true);
+//        Rectangle2D bounds = font.getStringBounds(text, frc);
+        // 字符宽度
+        int textWidth = (int) bounds.getWidth();
+        // 字符高度
+        int textHeight = (int) bounds.getHeight();
+         // 根据字符宽度字、符高度设置画布大小
+        BufferedImage sysImage = new BufferedImage(textWidth + margin, textHeight + margin, BufferedImage.TYPE_INT_RGB);
+        // 获取画笔对象
+        Graphics2D graphics = sysImage.createGraphics();
+        //设置图片透明
+        sysImage = graphics.getDeviceConfiguration().createCompatibleImage(textWidth + margin, textHeight + margin, Transparency.TRANSLUCENT);
+        graphics = sysImage.createGraphics();
+        //设置字体
+        graphics.setFont(font);
+        //设置水印字体颜色
+        Color color;
+        if (rule.getColor() != null) {
+            color = rule.getColor();
+        } else {
+            color = new Color(0, 0, 0, 3);
+        }
+        graphics.setColor(color);
+        // 消除java.awt.Font字体的锯齿
+        graphics.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+        // 设置水印透明度
+        graphics.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, rule.getAlpha().floatValue()));
+        Tuple marginInfo = getMarginInfo(rule.getPositions(), margin);
+        graphics.drawString(text,  marginInfo.get(0) , metrics.getAscent() + (int) marginInfo.get(1));
+        graphics.dispose();
+        return sysImage;
+    }
+
+    public Tuple getMarginInfo(Positions positions, Integer margin) {
+        int xMargin = 0;
+        int yMargin = 0;
+        switch (positions){
+            case TOP_LEFT:
+                xMargin = margin;
+                yMargin = margin;
+                break;
+            case TOP_CENTER:
+                xMargin = margin/2;
+                yMargin = margin;
+                break;
+            case TOP_RIGHT:
+                xMargin = 0;
+                yMargin = margin;
+                break;
+            case CENTER_LEFT:
+                xMargin = margin;
+                yMargin = margin/2;
+                break;
+            case CENTER:
+                xMargin = margin/2;
+                yMargin = margin/2;
+                break;
+            case CENTER_RIGHT:
+                xMargin = 0;
+                yMargin = margin/2;
+                break;
+            case BOTTOM_LEFT:
+                xMargin = margin;
+                yMargin = 0;
+                break;
+            case BOTTOM_CENTER:
+                xMargin = margin/2;
+                yMargin = 0;
+                break;
+            case BOTTOM_RIGHT:
+                xMargin = 0;
+                yMargin = 0;
+                break;
+        }
+        return new Tuple(xMargin, yMargin);
+    }
+}
+```
+
+
+
+### 6.4 添加多行文字水印的实现
+
+因为thumbnailator的watermark()方法只支持添加图片水印，所以先使用Graphics2D绘制一张图片。
+
+代码实现如下：
+
+```java
+import com.fhey.common.file.imagehand.rule.watermark.MultipleTextWatermarkRule;
+import net.coobird.thumbnailator.geometry.Positions;
+import java.awt.*;
+import java.awt.geom.Rectangle2D;
+import java.awt.image.BufferedImage;
+import java.util.Optional;
+
+public class MultipleTextWatermarkHand extends AbstractWatermarkHand<MultipleTextWatermarkRule> {
+
+    /**
+     * 获取全屏水印图片
+     * @param srcImg 原图
+     * @param rule 文字水印规则
+     * @return Builder
+     */
+    @Override
+    public BufferedImage getWaterImg(BufferedImage srcImg, MultipleTextWatermarkRule rule) {
+        rule.setPositions(Positions.CENTER);
+        int srcWidth = srcImg.getWidth();
+        int srcHeight = srcImg.getHeight();
+        String text = rule.getText();
+        Optional<MultipleTextWatermarkRule> multipleTextRuleOptional = Optional.ofNullable(rule);
+        // 将画布大小绘制成原图大小
+        BufferedImage sysImage= new BufferedImage(srcWidth, srcHeight, BufferedImage.TYPE_INT_RGB);
+        // 获取画笔对象
+        Graphics2D graphics = sysImage.createGraphics();
+        //清除矩形区域
+        graphics.clearRect(0, 0, srcWidth, srcHeight);
+        // 设置绘图区域透明
+        sysImage = graphics.getDeviceConfiguration().createCompatibleImage(srcWidth, srcHeight, Transparency.TRANSLUCENT);
+        graphics = sysImage.createGraphics();
+        FontMetrics metrics = new FontMetrics(rule.getFont()) {};
+        Rectangle2D bounds = metrics.getStringBounds(text, null);
+        // 字符宽度
+        int textWidth = (int) bounds.getWidth();
+        // 字符高度
+        int textHeight = (int) bounds.getHeight();
+        //设置字体
+        graphics.setFont( rule.getFont());
+        //设置水印字体颜色
+        Color color;
+        if (rule.getColor() != null) {
+            color = rule.getColor();
+        } else {
+            color = new Color(0, 0, 0);
+        }
+        graphics.setColor(color);
+        // 消除java.awt.Font字体的锯齿
+        graphics.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+        // 设置水印透明度
+        graphics.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, rule.getAlpha().floatValue()));
+        // 设置倾斜角度
+        graphics.rotate(Math.toRadians(multipleTextRuleOptional.map(MultipleTextWatermarkRule::getRotateDegree).orElse(0d))
+                , (double) srcImg.getWidth() / 2
+                , (double) srcImg.getHeight() / 2);
+        int xCoordinate = -srcWidth / 2, yCoordinate;
+        // 循环添加水印
+        while (xCoordinate < srcWidth * 1.5) {
+            yCoordinate = -srcHeight / 2;
+            while (yCoordinate < srcHeight * 1.5) {
+                graphics.drawString(rule.getText(), xCoordinate, yCoordinate);
+                yCoordinate += textHeight + multipleTextRuleOptional.map(MultipleTextWatermarkRule::getYSpace).orElse(textHeight);
+            }
+            xCoordinate += textWidth + multipleTextRuleOptional.map(MultipleTextWatermarkRule::getXSpace).orElse(textWidth / text.length() * 2);
+        }
+        graphics.dispose();
+        return sysImage;
+    }
+}
+```
+
 # 总结
 ​    到此这篇图片处理工具类的使用方式和实现原理都已经介绍完了，这个工具类实现图片裁剪、图片压缩、添加图片、添加文字水印和添加多行文字水印功能。因为第一次封装这样的工具类难免有些简陋，甚至可能有些错误，还望各位大佬海涵和指正。
