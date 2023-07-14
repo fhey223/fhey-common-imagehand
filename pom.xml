@@ -10,14 +10,14 @@
 
     <dependencies>
         <dependency>
-            <groupId>cn.hutool</groupId>
-            <artifactId>hutool-all</artifactId>
-            <version>5.7.15</version>
-        </dependency>
-        <dependency>
             <groupId>net.coobird</groupId>
             <artifactId>thumbnailator</artifactId>
             <version>0.4.20</version>
+        </dependency>
+        <dependency>
+            <groupId>cn.hutool</groupId>
+            <artifactId>hutool-all</artifactId>
+            <version>5.7.15</version>
         </dependency>
         <dependency>
             <groupId>commons-chain</groupId>
@@ -35,6 +35,7 @@
             <artifactId>lombok</artifactId>
             <version>1.18.22</version>
         </dependency>
+        <!-- 仅仅为了支持MultipartFile类型文件的加载，不加载MultipartFile这个依赖可以去掉-->
         <dependency>
             <groupId>org.springframework</groupId>
             <artifactId>spring-web</artifactId>

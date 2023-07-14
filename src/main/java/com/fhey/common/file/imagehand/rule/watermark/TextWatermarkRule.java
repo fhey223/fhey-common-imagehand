@@ -4,7 +4,6 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.experimental.SuperBuilder;
-
 import java.awt.*;
 
 /**
@@ -38,9 +37,14 @@ public class TextWatermarkRule extends BaseImageWatermarkRule {
     private Double proportion;
 
     /**
-     * 和边缘的间距
+     * x轴和边缘的间距
      */
-    private int margin;
+    private int xMargin;
+
+    /**
+     * x轴和边缘的间距
+     */
+    private int yMargin;
 
     @Override
     public boolean check() {

@@ -5,7 +5,7 @@ import com.fhey.common.file.imagehand.hand.CompressHandImageHand;
 import com.fhey.common.file.imagehand.hand.RegionHandImageHand;
 import com.fhey.common.file.imagehand.hand.watermark.ImageHandWatermarkHand;
 import com.fhey.common.file.imagehand.hand.watermark.MultipleTextWatermarkHand;
-import com.fhey.common.file.imagehand.hand.watermark.TextImageHandWatermarkHand;
+import com.fhey.common.file.imagehand.hand.watermark.TextHandWatermarkHand;
 import com.fhey.common.file.imagehand.rule.CompressRule;
 import com.fhey.common.file.imagehand.rule.ImageHandRule;
 import com.fhey.common.file.imagehand.rule.RegionRule;
@@ -30,10 +30,10 @@ public class ImageHandConstants {
     private final static Map<Class<? extends ImageHandRule>, BaseImageHand> ruleHandMap = new HashMap<>();
 
     static {
-        ruleHandMap.put(CompressRule.class, new CompressHandImageHand());
         ruleHandMap.put(RegionRule.class, new RegionHandImageHand());
+        ruleHandMap.put(CompressRule.class, new CompressHandImageHand());
         ruleHandMap.put(ImageWatermarkRule.class, new ImageHandWatermarkHand());
-        ruleHandMap.put(TextWatermarkRule.class, new TextImageHandWatermarkHand());
+        ruleHandMap.put(TextWatermarkRule.class, new TextHandWatermarkHand());
         ruleHandMap.put(MultipleTextWatermarkRule.class, new MultipleTextWatermarkHand());
     }
 

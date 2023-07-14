@@ -194,6 +194,7 @@ public final class ImageHandBuilder {
 
         /**
          * 将处理后的图片导出到文件
+         * @param file 图片文件
          */
         public void toFile(File file) throws Exception {
             this.process();
@@ -202,6 +203,7 @@ public final class ImageHandBuilder {
 
         /**
          * 将处理后的图片导出到文件
+         * @param absolutePath 图片绝对路径
          */
         public void toFile(String absolutePath) throws Exception {
             this.process();
@@ -210,6 +212,7 @@ public final class ImageHandBuilder {
 
         /**
          * 将处理后的图片导出到输出流
+         * @param out 输出流
          */
         public void toOutputStream(OutputStream out) throws Exception {
             this.process();

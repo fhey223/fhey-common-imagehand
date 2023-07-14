@@ -97,7 +97,7 @@ public class ImageHandBuilderTest {
                 .toFile("D:\\test\\test-compress-widthHeight-keep-byWidth.jpg");
     }
 
-    //按长宽压缩 保持比例
+    //按长宽压缩 自动保持比例
     @Test
     public void testWidthHeightCompressKeepAspectRatioAuto() throws Exception {
         ClassLoader classLoader = ImageHandBuilderTest.class.getClassLoader();
@@ -195,11 +195,29 @@ public class ImageHandBuilderTest {
                         .text("@知北游")
                         .color(Color.WHITE)
                         .font(new Font("宋体", Font.BOLD, 100))
-                        .margin(20)
-                        //.proportion(0.3d)
+                        .xMargin(20)
+                        .yMargin(20)
                         .alpha(0.8d)
                         .positions(Positions.BOTTOM_RIGHT).build())
                 .toFile("D:\\test\\test-watermark-text.jpg");
+    }
+
+    @Test
+    public void testTextWatermarkProportion() throws Exception {
+        ClassLoader classLoader = ImageHandBuilderTest.class.getClassLoader();
+        URL imageResource = classLoader.getResource("pic/example.jpg");
+        ImageHandBuilder.load(imageResource)
+                .addRule(ImageHandRuleFactory.waterRuleBuilder()
+                        .textBuilder()
+                        .text("@知北游")
+                        .color(Color.WHITE)
+                        .font(new Font("宋体", Font.BOLD, 100))
+                        .xMargin(20)
+                        .yMargin(20)
+                        .proportion(0.3d)
+                        .alpha(0.8d)
+                        .positions(Positions.BOTTOM_RIGHT).build())
+                .toFile("D:\\test\\test-watermark-text-proportion.jpg");
     }
 
     @Test
@@ -244,7 +262,8 @@ public class ImageHandBuilderTest {
                         .text("@知北游")
                         .color(Color.WHITE)
                         .font(new Font("宋体", Font.BOLD, 70))
-                        .margin(20)
+                        .xMargin(20)
+                        .yMargin(20)
                         //.proportion(0.3d)
                         .alpha(0.8d)
                         .positions(Positions.BOTTOM_LEFT).build())

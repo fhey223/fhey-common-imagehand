@@ -7,15 +7,13 @@ import net.coobird.thumbnailator.geometry.Positions;
 import java.awt.*;
 import java.awt.geom.Rectangle2D;
 import java.awt.image.BufferedImage;
-import java.util.HashMap;
-import java.util.Map;
 
 /**
  * @author fhey
  * @date 2022-07-08 18:31:39
  * @description: 
  */
-public class TextImageHandWatermarkHand extends AbstractWatermarkHand<TextWatermarkRule> {
+public class TextHandWatermarkHand extends AbstractWatermarkHand<TextWatermarkRule> {
     /**
      * 获取水印图片
      * @param srcImg 原图
@@ -26,7 +24,8 @@ public class TextImageHandWatermarkHand extends AbstractWatermarkHand<TextWaterm
     public BufferedImage getWaterImg(BufferedImage srcImg, TextWatermarkRule rule) {
         int srcWidth = srcImg.getWidth();
         int srcHeight = srcImg.getHeight();
-        int margin = rule.getMargin();
+        int xMargin = rule.getXMargin();
+        int yMargin = rule.getYMargin();
         String text = rule.getText();
         ///确定字体
         Font font;
@@ -46,11 +45,12 @@ public class TextImageHandWatermarkHand extends AbstractWatermarkHand<TextWaterm
         int textWidth = (int) bounds.getWidth();
         // 字符高度
         int textHeight = (int) bounds.getHeight();
-        BufferedImage sysImage = new BufferedImage(textWidth + margin, textHeight + margin, BufferedImage.TYPE_INT_RGB);
+        // 根据字符宽度字、符高度设置画布大小
+        BufferedImage sysImage = new BufferedImage(textWidth + xMargin, textHeight + yMargin, BufferedImage.TYPE_INT_RGB);
         // 获取画笔对象
         Graphics2D graphics = sysImage.createGraphics();
         //设置图片透明
-        sysImage = graphics.getDeviceConfiguration().createCompatibleImage(textWidth + margin, textHeight + margin, Transparency.TRANSLUCENT);
+        sysImage = graphics.getDeviceConfiguration().createCompatibleImage(textWidth + xMargin, textHeight + yMargin, Transparency.TRANSLUCENT);
         graphics = sysImage.createGraphics();
         //设置字体
         graphics.setFont(font);
@@ -66,54 +66,54 @@ public class TextImageHandWatermarkHand extends AbstractWatermarkHand<TextWaterm
         graphics.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
         // 设置水印透明度
         graphics.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, rule.getAlpha().floatValue()));
-        Tuple marginInfo = getMarginInfo(rule.getPositions(), margin);
+        Tuple marginInfo = getMarginInfo(rule.getPositions(), xMargin, yMargin);
         graphics.drawString(text,  marginInfo.get(0) , metrics.getAscent() + (int) marginInfo.get(1));
         graphics.dispose();
         return sysImage;
     }
 
-    public Tuple getMarginInfo(Positions positions, Integer margin) {
-        int xMargin = 0;
-        int yMargin = 0;
+    public Tuple getMarginInfo(Positions positions, Integer xMargin, Integer yMargin){
+        int newXMargin = 0;
+        int newYMargin = 0;
         switch (positions){
             case TOP_LEFT:
-                xMargin = margin;
-                yMargin = margin;
+                newXMargin = xMargin;
+                newYMargin = yMargin;
                 break;
             case TOP_CENTER:
-                xMargin = margin/2;
-                yMargin = margin;
+                newXMargin = xMargin/2;
+                newYMargin = yMargin;
                 break;
             case TOP_RIGHT:
-                xMargin = 0;
-                yMargin = margin;
+                newXMargin = 0;
+                newYMargin = xMargin;
                 break;
             case CENTER_LEFT:
-                xMargin = margin;
-                yMargin = margin/2;
+                newXMargin = xMargin;
+                newYMargin = yMargin/2;
                 break;
             case CENTER:
-                xMargin = margin/2;
-                yMargin = margin/2;
+                newXMargin = xMargin/2;
+                newYMargin = yMargin/2;
                 break;
             case CENTER_RIGHT:
-                xMargin = 0;
-                yMargin = margin/2;
+                newXMargin = 0;
+                newYMargin = yMargin/2;
                 break;
             case BOTTOM_LEFT:
-                xMargin = margin;
-                yMargin = 0;
+                newXMargin = xMargin;
+                newYMargin = 0;
                 break;
             case BOTTOM_CENTER:
-                xMargin = margin/2;
-                yMargin = 0;
+                newXMargin = xMargin/2;
+                newYMargin = 0;
                 break;
             case BOTTOM_RIGHT:
-                xMargin = 0;
-                yMargin = 0;
+                newXMargin = 0;
+                newYMargin = 0;
                 break;
         }
-        return new Tuple(xMargin, yMargin);
+        return new Tuple(newXMargin, newYMargin);
     }
 
 }
